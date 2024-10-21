@@ -52,7 +52,9 @@ class IoTApp : Application() {
                 }
 
                 override fun messageArrived(topic: String, message: MqttMessage) {
-                    println("Mensaje recibido: $topic -> ${String(message.payload)}")
+                    val receivedMessage = String(message.payload)
+                    println("Mensaje recibido: $topic -> $receivedMessage")
+                    handleReceivedMessage(topic, receivedMessage)
                 }
 
                 override fun deliveryComplete(token: IMqttDeliveryToken) {
@@ -61,6 +63,12 @@ class IoTApp : Application() {
             })
 
             mqttClient.connect()
+
+            // Suscribirse a los tópicos de cada dispositivo
+            for (device in devicesList) {
+                mqttClient.subscribe(device.topic, device.qos)
+                println("Suscrito al tópico: ${device.topic} con QoS ${device.qos}")
+            }
 
         } catch (e: MqttException) {
             println("Error al conectar al broker MQTT: ${e.message}")
@@ -96,10 +104,12 @@ class IoTApp : Application() {
             circle.isVisible = true
             root.children.add(circle)
 
+            // Asociar el círculo con el dispositivo
+            device.circle = circle
+
             // Añadir un evento de clic en cada lámpara
             circle.addEventHandler(MouseEvent.MOUSE_CLICKED) {
-
-                toggleLamp(circle, device)
+                toggleLamp(device.circle!!, device)
             }
         }
 
@@ -109,18 +119,21 @@ class IoTApp : Application() {
         primaryStage.show()
     }
 
-    private fun getColor(topic: String): Color {
-        if (topic.endsWith("lamp"))
-            return Color.YELLOW
-        else if (topic.endsWith("entrance"))
-            return Color.LIGHTGREEN
-        else if (topic.endsWith("temperature"))
-            return Color.RED
-        else if (topic.endsWith("humidity"))
-            return Color.SKYBLUE
-        else if (topic.endsWith("smoke"))
-            return Color.ORANGE
-        return Color.BLACK
+    // Manejar mensajes recibidos para cambiar el estado de las lámparas
+    private fun handleReceivedMessage(topic: String, message: String) {
+        // Encontrar el dispositivo correspondiente al tópico
+        val device = devicesList.find { it.topic == topic }
+
+        if (device != null) {
+            val newState = message.contains("ON")
+            device.state = newState
+
+            // Cambiar el color del círculo según el estado
+            device.circle?.fill = if (newState) Color.GREEN else device.color
+            println("${device.name} cambiado a ${if (newState) "ON" else "OFF"}")
+        } else {
+            println("No se encontró dispositivo para el tópico: $topic")
+        }
     }
 
     // Cambiar el estado de la lámpara y enviar el mensaje a MQTT
@@ -134,12 +147,12 @@ class IoTApp : Application() {
         circle.fill = if (newState) Color.GREEN else device.color
 
         // Enviar el estado de la lámpara por MQTT con el QoS correspondiente
-        sendMqttMessage(device.topic, newState, device.qos)
+        sendMqttMessage(device.topic, newState, device.qos, device.name)
     }
 
     // Enviar mensaje a MQTT con un QoS específico
-    private fun sendMqttMessage(topic: String, state: Boolean, qos: Int) {
-        val message = if (state) "$topic: ON" else "$topic: OFF"
+    private fun sendMqttMessage(topic: String, state: Boolean, qos: Int, name: String) {
+        val message = if (state) "$name: ON" else "$name: OFF"
         try {
             val mqttMessage = MqttMessage(message.toByteArray())
             mqttMessage.qos = qos // Usar el QoS específico de esta lámpara
@@ -161,7 +174,9 @@ class IoTApp : Application() {
     }
 }
 
-class Device(val pos: Position, val topic: String, var qos: Int, val name: String, var state: Boolean, var color: Color);
+class Device(val pos: Position, val topic: String, var qos: Int, val name: String, var state: Boolean, var color: Color) {
+    var circle: Circle? = null // Referencia al círculo en la interfaz gráfica
+}
 
 class Position(val x: Double, val y: Double);
 
