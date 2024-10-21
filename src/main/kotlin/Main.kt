@@ -21,24 +21,18 @@ const val HEIGHT = 1239.0/1.3
 
 class IoTApp : Application() {
     // Coordenadas, tópicos y QoS predefinidos para las lámparas
-    private val lampDetails = listOf(
-        Triple(Pair(194.0, 166.0), "home/room1/lamp", 0), // QoS 0 para esta lámpara
-        Triple(Pair(823.0, 166.0), "home/room2/lamp", 0),
-        Triple(Pair(194.0, 688.0), "home/kitchen/lamp", 0),
-        Triple(Pair(782.0, 606.0), "home/livingroom/lamp", 0),
-        Triple(Pair(516.0, 677.0), "home/foyer/lamp", 0),
-        Triple(Pair(478.0, 178.0), "home/bathroom/lamp", 0),
-        Triple(Pair(557.0, 914.0), "home/foyer/entrance", 1),
-        Triple(Pair(379.0, 228.0), "home/bathroom/humidity", 0),
-        Triple(Pair(780.0, 743.0), "home/livingroom/temperature", 0),
-        Triple(Pair(70.0, 715.0), "home/kitchen/smoke", 1),
-
+    private val devicesList = listOf(
+        Device(Position(194.0, 166.0), "home/room1/lamp", 0, "Lamp 1", false, Color.YELLOW),
+        Device(Position(823.0, 166.0), "home/room2/lamp", 0, "Lamp 2", false, Color.YELLOW),
+        Device(Position(194.0, 688.0), "home/kitchen/lamp", 0, "Kitchen Lamp", false, Color.YELLOW),
+        Device(Position(782.0, 606.0), "home/livingroom/lamp", 0, "Living Room Lamp", false, Color.YELLOW),
+        Device(Position(516.0, 677.0), "home/foyer/lamp", 0, "Foyer Lamp", false, Color.YELLOW),
+        Device(Position(478.0, 178.0), "home/bathroom/lamp", 0, "Bathroom Lamp", false, Color.YELLOW),
+        Device(Position(557.0, 914.0), "home/foyer/entrance", 1, "Foyer Entrance", false, Color.LIGHTGREEN),
+        Device(Position(379.0, 228.0), "home/bathroom/humidity", 0, "Bathroom Humidity Sensor", false, Color.SKYBLUE),
+        Device(Position(780.0, 743.0), "home/livingroom/temperature", 0, "Living Room Temperature Sensor", false, Color.RED),
+        Device(Position(70.0, 715.0), "home/kitchen/smoke", 1, "Kitchen Smoke Detector", false, Color.ORANGE)
     )
-
-    // Estado inicial de las lámparas (apagadas = false)
-    private val lampStates = mutableMapOf<Pair<Double, Double>, Boolean>().apply {
-        lampDetails.forEach { this[it.first] = false }
-    }
 
     // MQTT client settings
     private val brokerUrl = "tcp://localhost:1883" // Reemplaza con la IP de tu broker MQTT
@@ -88,22 +82,24 @@ class IoTApp : Application() {
         root.children.add(imageView)
 
         // Añadir un evento de clic al panel para capturar las coordenadas
+/*
         root.addEventHandler(MouseEvent.MOUSE_CLICKED) { event ->
             val x = event.x
             val y = event.y
             println("Coordenadas del clic: X=$x, Y=$y")
         }
+*/
 
         // Dibujar las lámparas como círculos sobre la imagen
-        for ((position, topic, qos) in lampDetails) {
-            val circle = Circle(position.first, position.second, 15.0, getColor(topic))
+        for (device in devicesList) {
+            val circle = Circle(device.pos.x, device.pos.y, 15.0, device.color)
             circle.isVisible = true
             root.children.add(circle)
 
             // Añadir un evento de clic en cada lámpara
             circle.addEventHandler(MouseEvent.MOUSE_CLICKED) {
 
-                toggleLamp(circle, position, topic, qos)
+                toggleLamp(circle, device)
             }
         }
 
@@ -128,17 +124,17 @@ class IoTApp : Application() {
     }
 
     // Cambiar el estado de la lámpara y enviar el mensaje a MQTT
-    private fun toggleLamp(circle: Circle, position: Pair<Double, Double>, topic: String, qos: Int) {
+    private fun toggleLamp(circle: Circle, device: Device) {
         // Cambiar el estado de la lámpara
-        val currentState = lampStates[position] ?: false
+        val currentState = device.state
         val newState = !currentState
-        lampStates[position] = newState
+        device.state = newState
 
         // Cambiar el color del círculo según el estado
-        circle.fill = if (newState) Color.GREEN else getColor(topic)
+        circle.fill = if (newState) Color.GREEN else device.color
 
         // Enviar el estado de la lámpara por MQTT con el QoS correspondiente
-        sendMqttMessage(topic, newState, qos)
+        sendMqttMessage(device.topic, newState, device.qos)
     }
 
     // Enviar mensaje a MQTT con un QoS específico
@@ -164,6 +160,10 @@ class IoTApp : Application() {
         }
     }
 }
+
+class Device(val pos: Position, val topic: String, var qos: Int, val name: String, var state: Boolean, var color: Color);
+
+class Position(val x: Double, val y: Double);
 
 fun main() {
     Application.launch(IoTApp::class.java)
