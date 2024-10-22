@@ -120,7 +120,7 @@ class IoTApp : Application() {
         }
 
         // Crear un Timeline para enviar el estado del primer dispositivo cada 50ms
-        val timeline = Timeline(KeyFrame(Duration.millis(Random.nextDouble(50.0, 500.0)), {
+        val timeline = Timeline(KeyFrame(Duration.millis(500.0), {
             for (device in devicesList) {
                 if (device.data.isNotEmpty() && device.state) {
                     val rnd = Random.nextInt(10, 30)
