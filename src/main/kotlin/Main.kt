@@ -20,8 +20,8 @@ import org.eclipse.paho.client.mqttv3.MqttMessage
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 import kotlin.random.Random
 
-const val WIDTH = 1280.0/1.3
-const val HEIGHT = 1239.0/1.3
+const val WIDTH = 1280.0 / 1.3
+const val HEIGHT = 1239.0 / 1.3
 
 class IoTApp : Application() {
     // Coordenadas, tópicos y QoS predefinidos para las lámparas
@@ -33,8 +33,24 @@ class IoTApp : Application() {
         Device(Position(516.0, 677.0), "home/foyer/lamp", 0, "Foyer Lamp", false, Color.YELLOW, ""),
         Device(Position(478.0, 178.0), "home/bathroom/lamp", 0, "Bathroom Lamp", false, Color.YELLOW, ""),
         Device(Position(557.0, 914.0), "home/foyer/entrance", 1, "Foyer Entrance", false, Color.LIGHTGREEN, ""),
-        Device(Position(379.0, 228.0), "home/bathroom/humidity", 0, "Bathroom Humidity Sensor", false, Color.SKYBLUE, "%"),
-        Device(Position(780.0, 743.0), "home/livingroom/temperature", 0, "Living Room Temperature Sensor", false, Color.RED, "ºC"),
+        Device(
+            Position(379.0, 228.0),
+            "home/bathroom/humidity",
+            0,
+            "Bathroom Humidity Sensor",
+            false,
+            Color.SKYBLUE,
+            "%"
+        ),
+        Device(
+            Position(780.0, 743.0),
+            "home/livingroom/temperature",
+            0,
+            "Living Room Temperature Sensor",
+            false,
+            Color.RED,
+            "ºC"
+        ),
         Device(Position(70.0, 715.0), "home/kitchen/smoke", 1, "Kitchen Smoke Detector", false, Color.ORANGE, "PPM")
     )
 
@@ -43,7 +59,6 @@ class IoTApp : Application() {
     private val clientId = "IoTAppClient"
 
     private lateinit var mqttClient: MqttClient
-
 
 
     override fun start(primaryStage: Stage) {
@@ -95,14 +110,6 @@ class IoTApp : Application() {
         imageView.isPreserveRatio = true
         root.children.add(imageView)
 
-        // Añadir un evento de clic al panel para capturar las coordenadas
-/*
-        root.addEventHandler(MouseEvent.MOUSE_CLICKED) { event ->
-            val x = event.x
-            val y = event.y
-            println("Coordenadas del clic: X=$x, Y=$y")
-        }
-*/
 
         // Dibujar las lámparas como círculos sobre la imagen
         for (device in devicesList) {
@@ -120,11 +127,11 @@ class IoTApp : Application() {
         }
 
         // Crear un Timeline para enviar el estado del primer dispositivo cada 50ms
-        val timeline = Timeline(KeyFrame(Duration.millis(500.0), {
+        val timeline = Timeline(KeyFrame(Duration.millis(15000.0), {
             for (device in devicesList) {
                 if (device.data.isNotEmpty() && device.state) {
                     val rnd = Random.nextInt(10, 30)
-                    val message =  "$rnd${device.data}"
+                    val message = "${device.name}:  $rnd${device.data}"
                     try {
                         val mqttMessage = MqttMessage(message.toByteArray())
                         mqttMessage.qos = device.qos // Usar el QoS específico de esta lámpara
@@ -152,7 +159,7 @@ class IoTApp : Application() {
         val device = devicesList.find { it.topic == topic }
 
         if (device != null) {
-            if (message.contains("ON") || message.contains("OFF")){
+            if (message.contains("ON") || message.contains("OFF")) {
                 val newState = message.contains("ON")
                 device.state = newState
                 // Cambiar el color del círculo según el estado
@@ -203,7 +210,15 @@ class IoTApp : Application() {
     }
 }
 
-open class Device(val pos: Position, val topic: String, var qos: Int, val name: String, var state: Boolean, var color: Color, var data: String) {
+open class Device(
+    val pos: Position,
+    val topic: String,
+    var qos: Int,
+    val name: String,
+    var state: Boolean,
+    var color: Color,
+    var data: String
+) {
     var circle: Circle? = null // Referencia al círculo en la interfaz gráfica
 }
 
