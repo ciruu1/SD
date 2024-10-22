@@ -1,5 +1,7 @@
 package com.etsisi
 
+import javafx.animation.KeyFrame
+import javafx.animation.Timeline
 import javafx.application.Application
 import javafx.scene.Scene
 import javafx.scene.image.Image
@@ -9,12 +11,14 @@ import javafx.scene.layout.Pane
 import javafx.scene.paint.Color
 import javafx.scene.shape.Circle
 import javafx.stage.Stage
+import javafx.util.Duration
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken
 import org.eclipse.paho.client.mqttv3.MqttCallback
 import org.eclipse.paho.client.mqttv3.MqttClient
 import org.eclipse.paho.client.mqttv3.MqttException
 import org.eclipse.paho.client.mqttv3.MqttMessage
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
+import kotlin.random.Random
 
 const val WIDTH = 1280.0/1.3
 const val HEIGHT = 1239.0/1.3
@@ -22,16 +26,16 @@ const val HEIGHT = 1239.0/1.3
 class IoTApp : Application() {
     // Coordenadas, tópicos y QoS predefinidos para las lámparas
     private val devicesList = listOf(
-        Device(Position(194.0, 166.0), "home/room1/lamp", 0, "Lamp 1", false, Color.YELLOW),
-        Device(Position(823.0, 166.0), "home/room2/lamp", 0, "Lamp 2", false, Color.YELLOW),
-        Device(Position(194.0, 688.0), "home/kitchen/lamp", 0, "Kitchen Lamp", false, Color.YELLOW),
-        Device(Position(782.0, 606.0), "home/livingroom/lamp", 0, "Living Room Lamp", false, Color.YELLOW),
-        Device(Position(516.0, 677.0), "home/foyer/lamp", 0, "Foyer Lamp", false, Color.YELLOW),
-        Device(Position(478.0, 178.0), "home/bathroom/lamp", 0, "Bathroom Lamp", false, Color.YELLOW),
-        Device(Position(557.0, 914.0), "home/foyer/entrance", 1, "Foyer Entrance", false, Color.LIGHTGREEN),
-        Device(Position(379.0, 228.0), "home/bathroom/humidity", 0, "Bathroom Humidity Sensor", false, Color.SKYBLUE),
-        Device(Position(780.0, 743.0), "home/livingroom/temperature", 0, "Living Room Temperature Sensor", false, Color.RED),
-        Device(Position(70.0, 715.0), "home/kitchen/smoke", 1, "Kitchen Smoke Detector", false, Color.ORANGE)
+        Device(Position(194.0, 166.0), "home/room1/lamp", 0, "Lamp 1", false, Color.YELLOW, ""),
+        Device(Position(823.0, 166.0), "home/room2/lamp", 0, "Lamp 2", false, Color.YELLOW, ""),
+        Device(Position(194.0, 688.0), "home/kitchen/lamp", 0, "Kitchen Lamp", false, Color.YELLOW, ""),
+        Device(Position(782.0, 606.0), "home/livingroom/lamp", 0, "Living Room Lamp", false, Color.YELLOW, ""),
+        Device(Position(516.0, 677.0), "home/foyer/lamp", 0, "Foyer Lamp", false, Color.YELLOW, ""),
+        Device(Position(478.0, 178.0), "home/bathroom/lamp", 0, "Bathroom Lamp", false, Color.YELLOW, ""),
+        Device(Position(557.0, 914.0), "home/foyer/entrance", 1, "Foyer Entrance", false, Color.LIGHTGREEN, ""),
+        Device(Position(379.0, 228.0), "home/bathroom/humidity", 0, "Bathroom Humidity Sensor", false, Color.SKYBLUE, "%"),
+        Device(Position(780.0, 743.0), "home/livingroom/temperature", 0, "Living Room Temperature Sensor", false, Color.RED, "ºC"),
+        Device(Position(70.0, 715.0), "home/kitchen/smoke", 1, "Kitchen Smoke Detector", false, Color.ORANGE, "PPM")
     )
 
     // MQTT client settings
@@ -39,6 +43,8 @@ class IoTApp : Application() {
     private val clientId = "IoTAppClient"
 
     private lateinit var mqttClient: MqttClient
+
+
 
     override fun start(primaryStage: Stage) {
         // Configurar cliente MQTT
@@ -113,6 +119,28 @@ class IoTApp : Application() {
             }
         }
 
+        // Crear un Timeline para enviar el estado del primer dispositivo cada 50ms
+        val timeline = Timeline(KeyFrame(Duration.millis(Random.nextDouble(50.0, 500.0)), {
+            for (device in devicesList) {
+                if (device.data.isNotEmpty() && device.state) {
+                    val rnd = Random.nextInt(10, 30)
+                    val message =  "$rnd${device.data}"
+                    try {
+                        val mqttMessage = MqttMessage(message.toByteArray())
+                        mqttMessage.qos = device.qos // Usar el QoS específico de esta lámpara
+                        mqttClient.publish(device.topic, mqttMessage)
+                        //println("Mensaje MQTT enviado a $topic con QoS $qos: $message")
+                    } catch (e: MqttException) {
+                        //println("Error al enviar mensaje MQTT: ${e.message}")
+                        e.printStackTrace()
+                    }
+                }
+            }
+            sendMqttMessage(devicesList[0].topic, devicesList[0].state, devicesList[0].qos, devicesList[0].name)
+        }))
+        timeline.cycleCount = Timeline.INDEFINITE // Se ejecuta indefinidamente
+        timeline.play() // Inicia el envío periódico
+
         val scene = Scene(root, WIDTH, HEIGHT)
         primaryStage.scene = scene
         primaryStage.title = "IoT Lamp Control"
@@ -174,11 +202,11 @@ class IoTApp : Application() {
     }
 }
 
-class Device(val pos: Position, val topic: String, var qos: Int, val name: String, var state: Boolean, var color: Color) {
+open class Device(val pos: Position, val topic: String, var qos: Int, val name: String, var state: Boolean, var color: Color, var data: String) {
     var circle: Circle? = null // Referencia al círculo en la interfaz gráfica
 }
 
-class Position(val x: Double, val y: Double);
+class Position(val x: Double, val y: Double)
 
 fun main() {
     Application.launch(IoTApp::class.java)
