@@ -136,7 +136,6 @@ class IoTApp : Application() {
                     }
                 }
             }
-            sendMqttMessage(devicesList[0].topic, devicesList[0].state, devicesList[0].qos, devicesList[0].name)
         }))
         timeline.cycleCount = Timeline.INDEFINITE // Se ejecuta indefinidamente
         timeline.play() // Inicia el envío periódico
@@ -153,12 +152,14 @@ class IoTApp : Application() {
         val device = devicesList.find { it.topic == topic }
 
         if (device != null) {
-            val newState = message.contains("ON")
-            device.state = newState
+            if (message.contains("ON") || message.contains("OFF")){
+                val newState = message.contains("ON")
+                device.state = newState
+                // Cambiar el color del círculo según el estado
+                device.circle?.fill = if (newState) Color.GREEN else device.color
+                println("${device.name} cambiado a ${if (newState) "ON" else "OFF"}")
+            }
 
-            // Cambiar el color del círculo según el estado
-            device.circle?.fill = if (newState) Color.GREEN else device.color
-            println("${device.name} cambiado a ${if (newState) "ON" else "OFF"}")
         } else {
             println("No se encontró dispositivo para el tópico: $topic")
         }
